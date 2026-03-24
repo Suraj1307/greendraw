@@ -40,12 +40,23 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(",") : "*"
-  })
-);
+    callback(new Error("Origin not allowed by CORS"));
+  }
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
@@ -90,6 +101,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: "Unexpected server error." });
 });
 
-app.listen(port, () => {
-  console.log(`GreenDraw backend listening on port ${port}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(port, () => {
+    console.log(`GreenDraw backend listening on port ${port}`);
+  });
+}
+
+export default app;
